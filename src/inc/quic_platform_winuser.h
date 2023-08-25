@@ -993,6 +993,25 @@ extern CXPLAT_PROCESSOR_GROUP_INFO* CxPlatProcessorGroupInfo;
 #if defined(QUIC_RESTRICTED_BUILD)
 DWORD CxPlatProcMaxCount();
 DWORD CxPlatProcActiveCount();
+#elif QUIC_ENABLE_CUSTOM_EVENT_LOOP
+#define CxPlatProcMaxCount() (\
+    MsQuicGetThreadCountLimit() > 0 \
+        ? (\
+          MsQuicGetThreadCountLimit() < GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS) \
+              ? MsQuicGetThreadCountLimit() \
+              : GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS) \
+          ) \
+        : GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS) \
+)
+#define CxPlatProcActiveCount() (\
+    MsQuicGetThreadCountLimit() > 0 \
+        ? (\
+          MsQuicGetThreadCountLimit() < GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) \
+              ? MsQuicGetThreadCountLimit() \
+              : GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) \
+          ) \
+        : GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) \
+)
 #else
 #define CxPlatProcMaxCount() GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS)
 #define CxPlatProcActiveCount() GetActiveProcessorCount(ALL_PROCESSOR_GROUPS)
@@ -1088,6 +1107,31 @@ CXPLAT_THREAD_CALLBACK(CxPlatThreadCustomStart, CustomContext); // CXPLAT_THREAD
 
 #endif // CXPLAT_USE_CUSTOM_THREAD_CONTEXT
 
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+QUIC_STATUS
+QUIC_API
+MsQuicGetEventLoopThreadDispatcher(
+    _Out_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN* ThreadDispatcher
+    );
+
+inline
+QUIC_STATUS
+CxPlatEventLoopThreadDispatch(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_ void* Context
+    )
+{
+    QUIC_EVENT_LOOP_THREAD_DISPATCH_FN fn = NULL;
+    MsQuicGetEventLoopThreadDispatcher(&fn);
+    if (fn == NULL) {
+        return QUIC_STATUS_INVALID_STATE;
+    }
+    return fn(Config, EventQ, Thread, Context);
+}
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
 inline
 QUIC_STATUS
 CxPlatThreadCreate(
@@ -1175,6 +1219,16 @@ CxPlatThreadCreate(
 #define CxPlatThreadWait(Thread) WaitForSingleObject(*(Thread), INFINITE)
 typedef uint32_t CXPLAT_THREAD_ID;
 #define CxPlatCurThreadID() GetCurrentThreadId()
+
+inline
+QUIC_STATUS
+CxPlatGetCurThread(
+    _Out_ CXPLAT_THREAD* Thread
+    )
+{
+    *Thread = GetCurrentThread();
+    return QUIC_STATUS_SUCCESS;
+}
 
 //
 // Rundown Protection Interfaces

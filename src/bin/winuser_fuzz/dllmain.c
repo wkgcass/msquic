@@ -105,7 +105,9 @@ DllMain(
 #else
         UNREFERENCED_PARAMETER(Instance);
 #endif
+#if !QUIC_ENABLE_CUSTOM_EVENT_LOOP
         MsQuicLibraryLoad();
+#endif
         break;
 
     case DLL_PROCESS_DETACH:

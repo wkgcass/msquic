@@ -39,7 +39,9 @@ Entry(
     void
     )
 {
+#if !QUIC_ENABLE_CUSTOM_EVENT_LOOP
     MsQuicLibraryLoad();
+#endif
 }
 
 static

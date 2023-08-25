@@ -613,6 +613,14 @@ CxPlatProcActiveCount(
     }
     CXPLAT_FREE(ProcInfo, QUIC_POOL_PLATFORM_TMP_ALLOC);
     CXPLAT_DBG_ASSERT(Count != 0);
+
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+    uint32_t ThreadLimit = MsQuicGetThreadCountLimit();
+    if (ThreadLimit > 0 && Count > ThreadLimit) {
+        Count = ThreadLimit;
+    }
+#endif
+
     return Count;
 }
 
@@ -635,6 +643,14 @@ CxPlatProcMaxCount(
     }
     CXPLAT_FREE(ProcInfo, QUIC_POOL_PLATFORM_TMP_ALLOC);
     CXPLAT_DBG_ASSERT(Count != 0);
+
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+    uint32_t ThreadLimit = MsQuicGetThreadCountLimit();
+    if (ThreadLimit > 0 && Count > ThreadLimit) {
+        Count = ThreadLimit;
+    }
+#endif
+
     return Count;
 }
 #endif

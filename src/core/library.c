@@ -644,7 +644,7 @@ MsQuicRelease(
 _IRQL_requires_max_(PASSIVE_LEVEL)
 QUIC_STATUS
 QuicLibraryEnsureExecutionContext(
-    void
+    _In_ void* Context
     )
 {
     const CXPLAT_UDP_DATAPATH_CALLBACKS DatapathCallbacks = {
@@ -657,12 +657,16 @@ QuicLibraryEnsureExecutionContext(
     CxPlatLockAcquire(&MsQuicLib.Lock);
 
     if (MsQuicLib.Datapath == NULL) {
+        QUIC_EXECUTION_CONFIG_EX ConfigEx;
+        ConfigEx.Config = MsQuicLib.ExecutionConfig;
+        ConfigEx.Context = Context;
+
         Status =
             CxPlatDataPathInitialize(
                 sizeof(CXPLAT_RECV_PACKET),
                 &DatapathCallbacks,
                 NULL,                   // TcpCallbacks
-                MsQuicLib.ExecutionConfig,
+                &ConfigEx,
                 &MsQuicLib.Datapath);
         if (QUIC_FAILED(Status)) {
             QuicTraceEvent(

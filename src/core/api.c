@@ -1411,7 +1411,11 @@ MsQuicSetParam(
 
     QUIC_CONN_VERIFY(Connection, !Connection->State.Freed);
 
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+    if ((Connection->WorkerThreadID == 0 && MsQuicIsWorker()) || Connection->WorkerThreadID == CxPlatCurThreadID()) {
+#else
     if (Connection->WorkerThreadID == CxPlatCurThreadID()) {
+#endif
         //
         // Execute this blocking API call inline if called on the worker thread.
         //

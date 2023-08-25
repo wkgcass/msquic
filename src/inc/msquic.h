@@ -38,9 +38,101 @@ Supported Platforms:
 #error "Unsupported Platform"
 #endif
 
+#include "quic_platform.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
+struct CxPlatProcessEventLocals {
+    void*      Worker;
+    void*      State;
+    uint32_t   WaitTime;
+
+    uint32_t   CqeCount;
+#define CxPlatProcessCqesArraySize (16)
+    CXPLAT_CQE Cqes[CxPlatProcessCqesArraySize];
+};
+
+struct CxPlatWorkerThreadLocals {
+    void* Worker;
+    void* State;
+};
+
+void
+QUIC_API
+MsQuicCxPlatWorkerThreadInit(
+    _Inout_ void* CxPlatWorkerThreadLocals
+    );
+
+void
+QUIC_API
+MsQuicCxPlatWorkerThreadBeforePoll(
+    _Inout_ void* CxPlatProcessEventLocals
+    );
+
+BOOLEAN
+QUIC_API
+MsQuicCxPlatWorkerThreadAfterPoll(
+    _Inout_ void* CxPlatProcessEventLocals
+    );
+
+int
+QUIC_API
+MsQuicCxPlatWorkerThreadFinalize(
+    _Inout_ void* CxPlatWorkerThreadLocals
+    );
+
+QUIC_STATUS
+QUIC_API
+CxPlatGetCurThread(
+    _Out_ CXPLAT_THREAD* Thread
+    );
+
+typedef
+QUIC_STATUS
+(QUIC_API * QUIC_EVENT_LOOP_THREAD_DISPATCH_FN)(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_ void* Context
+    );
+
+QUIC_STATUS
+QUIC_API
+MsQuicSetEventLoopThreadDispatcher(
+    _In_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN ThreadDispatcher
+    );
+
+QUIC_STATUS
+QUIC_API
+MsQuicGetEventLoopThreadDispatcher(
+    _Out_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN* ThreadDispatcher
+    );
+
+void
+QUIC_API
+MsQuicSetThreadCountLimit(
+    _In_ uint32_t Limit
+    );
+
+uint32_t
+QUIC_API
+MsQuicGetThreadCountLimit(void);
+
+uint8_t
+QUIC_API
+MsQuicIsWorker(void);
+
+void
+QUIC_API
+MsQuicSetIsWorker(
+    _In_ uint8_t is_worker
+    );
+
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
 
 typedef struct QUIC_HANDLE *HQUIC;
 
@@ -279,12 +371,19 @@ typedef struct QUIC_EXECUTION_CONFIG {
 
 } QUIC_EXECUTION_CONFIG;
 
+typedef struct QUIC_EXECUTION_CONFIG_EX {
+    QUIC_EXECUTION_CONFIG* Config;
+    void* Context;
+} QUIC_EXECUTION_CONFIG_EX;
+
 #define QUIC_EXECUTION_CONFIG_MIN_SIZE \
     (uint32_t)FIELD_OFFSET(QUIC_EXECUTION_CONFIG, ProcessorList)
 
 typedef struct QUIC_REGISTRATION_CONFIG { // All fields may be NULL/zero.
     const char* AppName;
     QUIC_EXECUTION_PROFILE ExecutionProfile;
+
+    void* Context;
 } QUIC_REGISTRATION_CONFIG;
 
 typedef

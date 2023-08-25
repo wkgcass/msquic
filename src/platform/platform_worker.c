@@ -113,14 +113,20 @@ CxPlatWorkersInit(
     CxPlatLockInitialize(&CxPlatWorkerLock);
 }
 
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+static QUIC_EVENT_LOOP_THREAD_DISPATCH_FN EventLoopThreadDispatcher_;
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
 #pragma warning(push)
 #pragma warning(disable:6385)
 #pragma warning(disable:6386) // SAL is confused about the worker size
 BOOLEAN
 CxPlatWorkersLazyStart(
-    _In_opt_ QUIC_EXECUTION_CONFIG* Config
+    _In_opt_ QUIC_EXECUTION_CONFIG_EX* ConfigEx
     )
 {
+    QUIC_EXECUTION_CONFIG* Config = ConfigEx->Config;
+
     CxPlatLockAcquire(&CxPlatWorkerLock);
     if (CxPlatWorkers != NULL) {
         CxPlatLockRelease(&CxPlatWorkerLock);
@@ -203,10 +209,21 @@ CxPlatWorkersLazyStart(
         }
         CxPlatWorkers[i].InitializedUpdatePollSqe = TRUE;
 #endif
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+        if (EventLoopThreadDispatcher_ != NULL) {
+        if (QUIC_FAILED(
+            CxPlatEventLoopThreadDispatch(&ThreadConfig, &CxPlatWorkers[i].EventQ, &CxPlatWorkers[i].Thread, ConfigEx->Context))) {
+            goto Error;
+        }
+        } else {
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
         if (QUIC_FAILED(
             CxPlatThreadCreate(&ThreadConfig, &CxPlatWorkers[i].Thread))) {
             goto Error;
         }
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+        }
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
         CxPlatWorkers[i].InitializedThread = TRUE;
     }
 
@@ -435,14 +452,55 @@ CxPlatRunExecutionContexts(
     }
 }
 
+struct CxPlatProcessEventsLocals_ {
+    CXPLAT_WORKER*          Worker;
+    CXPLAT_EXECUTION_STATE* State;
+
+    uint32_t                WaitTime;
+
+    uint32_t                CqeCount;
+#define CxPlatProcessCqesArraySize (16)
+    CXPLAT_CQE              Cqes[CxPlatProcessCqesArraySize];
+};
+
+static void CxPlatProcessEventsPrePoll(struct CxPlatProcessEventsLocals_*);
+static BOOLEAN CxPlatProcessEventsPostPoll(struct CxPlatProcessEventsLocals_*);
+
 BOOLEAN
 CxPlatProcessEvents(
     _In_ CXPLAT_WORKER* Worker,
     _Inout_ CXPLAT_EXECUTION_STATE* State
     )
 {
-    CXPLAT_CQE Cqes[16];
-    uint32_t CqeCount = CxPlatEventQDequeue(&Worker->EventQ, Cqes, ARRAYSIZE(Cqes), State->WaitTime);
+    struct CxPlatProcessEventsLocals_ locals;
+    locals.Worker = Worker;
+    locals.State = State;
+
+    CxPlatProcessEventsPrePoll(&locals);
+    locals.CqeCount = CxPlatEventQDequeue(&Worker->EventQ, locals.Cqes, ARRAYSIZE(locals.Cqes), State->WaitTime);
+    return CxPlatProcessEventsPostPoll(&locals);
+}
+
+static
+void
+CxPlatProcessEventsPrePoll(
+    _Inout_ struct CxPlatProcessEventsLocals_* locals
+    )
+{
+    locals->WaitTime = locals->State->WaitTime;
+}
+
+static
+BOOLEAN
+CxPlatProcessEventsPostPoll(
+    _Inout_ struct CxPlatProcessEventsLocals_* locals
+    )
+{
+    CXPLAT_WORKER* Worker = locals->Worker;
+    CXPLAT_EXECUTION_STATE* State = locals->State;
+    CXPLAT_CQE* Cqes = locals->Cqes;
+    uint32_t CqeCount = locals->CqeCount;
+
     InterlockedFetchAndSetBoolean(&Worker->Running);
     if (CqeCount != 0) {
 #if DEBUG // Debug statistics
@@ -462,6 +520,10 @@ CxPlatProcessEvents(
             case CXPLAT_CQE_TYPE_WORKER_UPDATE_POLL:
                 CxPlatUpdateExecutionContexts(Worker);
                 break;
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+            case CXPLAT_CQE_TYPE_USER_EVENT:
+                break;
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
             default: // Pass the rest to the datapath
                 CxPlatDataPathProcessCqe(&Cqes[i]);
                 break;
@@ -472,6 +534,38 @@ CxPlatProcessEvents(
     return FALSE;
 }
 
+struct CxPlatWorkerThreadLocals_ {
+  CXPLAT_WORKER*          Worker;
+  CXPLAT_EXECUTION_STATE* State;
+};
+
+static void CxPlatWorkerThreadPreLoop(struct CxPlatWorkerThreadLocals_*);
+static void CxPlatWorkerThreadPrePoll(struct CxPlatWorkerThreadLocals_*);
+static void CxPlatWorkerThreadPostPoll(struct CxPlatWorkerThreadLocals_*);
+static int CxPlatWorkerThreadPostLoop(struct CxPlatWorkerThreadLocals_*);
+
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
+static _Thread_local uint8_t _is_worker;
+
+uint8_t
+QUIC_API
+MsQuicIsWorker(void)
+{
+    return _is_worker;
+}
+
+void
+QUIC_API
+MsQuicSetIsWorker(
+    _In_ uint8_t is_worker
+    )
+{
+    _is_worker = is_worker;
+}
+
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
 //
 // The number of iterations to run before yielding our thread to the scheduler.
 //
@@ -479,8 +573,43 @@ CxPlatProcessEvents(
 
 CXPLAT_THREAD_CALLBACK(CxPlatWorkerThread, Context)
 {
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+    MsQuicSetIsWorker(1);
+#endif
     CXPLAT_WORKER* Worker = (CXPLAT_WORKER*)Context;
     CXPLAT_DBG_ASSERT(Worker != NULL);
+
+    struct CxPlatWorkerThreadLocals_ locals;
+    memset(&locals, 0, sizeof(struct CxPlatWorkerThreadLocals_));
+    CXPLAT_EXECUTION_STATE State;
+    locals.State = &State;
+
+    locals.Worker = Worker;
+
+    CxPlatWorkerThreadPreLoop(&locals);
+
+    while (TRUE) {
+        CxPlatWorkerThreadPrePoll(&locals);
+        if (CxPlatProcessEvents(Worker, locals.State)) {
+            goto Shutdown;
+        }
+        CxPlatWorkerThreadPostPoll(&locals);
+    }
+
+Shutdown:
+    ;
+    int ret = CxPlatWorkerThreadPostLoop(&locals);
+    if (ret) {} // suppress unused variable
+    CXPLAT_THREAD_RETURN(ret);
+}
+
+static
+void
+CxPlatWorkerThreadPreLoop(
+    _Inout_ struct CxPlatWorkerThreadLocals_* locals
+    )
+{
+    CXPLAT_WORKER* Worker = locals->Worker;
 
     QuicTraceLogInfo(
         PlatformWorkerThreadStart,
@@ -491,34 +620,54 @@ CXPLAT_THREAD_CALLBACK(CxPlatWorkerThread, Context)
 #endif
 
     CXPLAT_EXECUTION_STATE State = { 0, CxPlatTimeUs64(), UINT32_MAX, 0, CxPlatCurThreadID() };
+    *locals->State = State;
 
     Worker->Running = TRUE;
+}
 
-    while (TRUE) {
+static
+void
+CxPlatWorkerThreadPrePoll(
+    _Inout_ struct CxPlatWorkerThreadLocals_* locals
+    )
+{
+        CXPLAT_WORKER* Worker = locals->Worker;
+        CXPLAT_EXECUTION_STATE* State = locals->State;
 
-        ++State.NoWorkCount;
+        ++State->NoWorkCount;
 #if DEBUG // Debug statistics
         ++Worker->LoopCount;
 #endif
 
-        CxPlatRunExecutionContexts(Worker, &State);
-        if (State.WaitTime && InterlockedFetchAndClearBoolean(&Worker->Running)) {
-            CxPlatRunExecutionContexts(Worker, &State); // Run once more to handle race conditions
+        CxPlatRunExecutionContexts(Worker, State);
+        if (State->WaitTime && InterlockedFetchAndClearBoolean(&Worker->Running)) {
+            CxPlatRunExecutionContexts(Worker, State); // Run once more to handle race conditions
         }
+}
 
-        if (CxPlatProcessEvents(Worker, &State)) {
-            goto Shutdown;
-        }
+static
+void
+CxPlatWorkerThreadPostPoll(
+    _Inout_ struct CxPlatWorkerThreadLocals_* locals
+    )
+{
+        CXPLAT_EXECUTION_STATE* State = locals->State;
 
-        if (State.NoWorkCount == 0) {
-            State.LastWorkTime = State.TimeNow;
-        } else if (State.NoWorkCount > CXPLAT_WORKER_IDLE_WORK_THRESHOLD_COUNT) {
+        if (State->NoWorkCount == 0) {
+            State->LastWorkTime = State->TimeNow;
+        } else if (State->NoWorkCount > CXPLAT_WORKER_IDLE_WORK_THRESHOLD_COUNT) {
             CxPlatSchedulerYield();
-            State.NoWorkCount = 0;
+            State->NoWorkCount = 0;
         }
-    }
+}
 
-Shutdown:
+static
+int
+CxPlatWorkerThreadPostLoop(
+    _Inout_ struct CxPlatWorkerThreadLocals_* locals
+    )
+{
+    CXPLAT_WORKER* Worker = locals->Worker;
 
     Worker->Running = FALSE;
 
@@ -531,5 +680,94 @@ Shutdown:
         "[ lib][%p] Worker stop",
         Worker);
 
-    CXPLAT_THREAD_RETURN(0);
+    return 0;
 }
+
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
+QUIC_STATUS
+QUIC_API
+MsQuicSetEventLoopThreadDispatcher(
+    _In_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN EventLoopThreadDispatcher
+    )
+{
+    EventLoopThreadDispatcher_ = EventLoopThreadDispatcher;
+    return QUIC_STATUS_SUCCESS;
+}
+
+QUIC_STATUS
+QUIC_API
+MsQuicGetEventLoopThreadDispatcher(
+    _Out_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN* EventLoopThreadDispatcher
+    )
+{
+    *EventLoopThreadDispatcher = EventLoopThreadDispatcher_;
+    return QUIC_STATUS_SUCCESS;
+}
+
+void
+QUIC_API
+MsQuicCxPlatWorkerThreadInit(
+    _Inout_ void* locals_
+    )
+{
+    struct CxPlatWorkerThreadLocals_* locals = locals_;
+    CxPlatWorkerThreadPreLoop(locals);
+}
+
+void
+QUIC_API
+MsQuicCxPlatWorkerThreadBeforePoll(
+    _Inout_ void* locals_
+    )
+{
+    struct CxPlatWorkerThreadLocals_* locals = locals_;
+    struct CxPlatProcessEventsLocals_* locals2 = locals_;
+    CxPlatWorkerThreadPrePoll(locals);
+    CxPlatProcessEventsPrePoll(locals2);
+}
+
+BOOLEAN
+QUIC_API
+MsQuicCxPlatWorkerThreadAfterPoll(
+    _Inout_ void* locals_
+    )
+{
+    struct CxPlatWorkerThreadLocals_* locals = locals_;
+    struct CxPlatProcessEventsLocals_* locals2 = locals_;
+    if (CxPlatProcessEventsPostPoll(locals2)) {
+        return TRUE;
+    }
+    CxPlatWorkerThreadPostPoll(locals);
+    return FALSE;
+}
+
+int
+QUIC_API
+MsQuicCxPlatWorkerThreadFinalize(
+    _Inout_ void* locals_
+    )
+{
+    struct CxPlatWorkerThreadLocals_* locals = locals_;
+    return CxPlatWorkerThreadPostLoop(locals);
+}
+
+static uint32_t _ThreadCountLimit;
+
+void
+QUIC_API
+MsQuicSetThreadCountLimit(
+    _In_ uint32_t Limit
+    )
+{
+    _ThreadCountLimit = Limit;
+}
+
+uint32_t
+QUIC_API
+MsQuicGetThreadCountLimit(void)
+{
+    return _ThreadCountLimit;
+}
+
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP

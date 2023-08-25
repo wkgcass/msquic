@@ -53,7 +53,7 @@ MsQuicRegistrationOpen(
     }
 
     if (ExternalRegistration) {
-        Status = QuicLibraryEnsureExecutionContext();
+        Status = QuicLibraryEnsureExecutionContext(Config->Context);
         if (QUIC_FAILED(Status)) {
             goto Error;
         }

@@ -534,7 +534,7 @@ QuicLibraryTryAddRefBinding(
 _IRQL_requires_max_(PASSIVE_LEVEL)
 QUIC_STATUS
 QuicLibraryEnsureExecutionContext(
-    void
+    _In_ void* Context
     );
 
 //
