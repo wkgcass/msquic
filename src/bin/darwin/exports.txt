@@ -1,2 +1,13 @@
 _MsQuicOpenVersion
 _MsQuicClose
+_CxPlatGetCurThread
+_MsQuicCxPlatWorkerThreadInit
+_MsQuicCxPlatWorkerThreadBeforePoll
+_MsQuicCxPlatWorkerThreadAfterPoll
+_MsQuicCxPlatWorkerThreadFinalize
+_MsQuicSetEventLoopThreadDispatcher
+_MsQuicGetEventLoopThreadDispatcher
+_MsQuicSetThreadCountLimit
+_MsQuicGetThreadCountLimit
+_MsQuicIsWorker
+_MsQuicSetIsWorker

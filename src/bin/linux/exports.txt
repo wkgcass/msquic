@@ -1,5 +1,16 @@
 msquic
 {
   global: MsQuicOpenVersion; MsQuicClose;
+          CxPlatGetCurThread;
+          MsQuicCxPlatWorkerThreadInit;
+          MsQuicCxPlatWorkerThreadBeforePoll;
+          MsQuicCxPlatWorkerThreadAfterPoll;
+          MsQuicCxPlatWorkerThreadFinalize;
+          MsQuicSetEventLoopThreadDispatcher;
+          MsQuicGetEventLoopThreadDispatcher;
+          MsQuicSetThreadCountLimit;
+          MsQuicGetThreadCountLimit;
+          MsQuicIsWorker;
+          MsQuicSetIsWorker;
   local: *;
 };

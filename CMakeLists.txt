@@ -102,6 +102,7 @@ option(QUIC_USE_SYSTEM_LIBCRYPTO "Use system libcrypto if openssl TLS" OFF)
 option(QUIC_HIGH_RES_TIMERS "Configure the system to use high resolution timers" OFF)
 option(QUIC_USE_XDP "Uses XDP instead of socket APIs" OFF)
 option(QUIC_OFFICIAL_RELEASE "Configured the build for an official release" OFF)
+option(QUIC_ENABLE_CUSTOM_EVENT_LOOP "Enable custom event loop" ON)
 set(QUIC_FOLDER_PREFIX "" CACHE STRING "Optional prefix for source group folders when using an IDE generator")
 set(QUIC_LIBRARY_NAME "msquic" CACHE STRING "Override the output library name")
 set(QUIC_LOGGING_TYPE "" CACHE STRING "Explicitly choose logging backend (\"etw\", \"lttng\" or \"stdout\")")
@@ -684,6 +685,10 @@ endif()
 
 if (QUIC_USE_SYSTEM_LIBCRYPTO)
     list(APPEND QUIC_COMMON_DEFINES CXPLAT_SYSTEM_CRYPTO)
+endif()
+
+if (QUIC_ENABLE_CUSTOM_EVENT_LOOP)
+    list(APPEND QUIC_COMMON_DEFINES QUIC_ENABLE_CUSTOM_EVENT_LOOP=1)
 endif()
 
 if(QUIC_CODE_CHECK)
