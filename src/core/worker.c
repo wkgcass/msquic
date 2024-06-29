@@ -432,7 +432,7 @@ QuicWorkerProcessTimers(
         QuicConfigurationAttachSilo(Connection->Configuration);
         QuicConnTimerExpired(Connection, TimeNow);
         QuicConfigurationDetachSilo();
-        Connection->WorkerThreadID = 0;
+        // FIXME: do we need this? Connection->WorkerThreadID = 0;
     }
 }
 
@@ -508,7 +508,7 @@ QuicWorkerProcessConnection(
     //
     BOOLEAN StillHasWorkToDo =
         QuicConnDrainOperations(Connection) | Connection->State.UpdateWorker;
-    Connection->WorkerThreadID = 0;
+    // FIXME: do we need this? Connection->WorkerThreadID = 0;
 
     //
     // Determine whether the connection needs to be requeued.
