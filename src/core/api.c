@@ -229,7 +229,6 @@ MsQuicConnectionShutdown(
         (Connection->WorkerThreadID == CxPlatCurThreadID()) ||
         !Connection->State.HandleClosed);
 
-    CXPLAT_EVENT CompletionEvent;
     Oper = QuicOperationAlloc(Connection->Worker, QUIC_OPER_TYPE_API_CALL);
     if (Oper == NULL) {
         if (InterlockedCompareExchange16(
@@ -247,24 +246,10 @@ MsQuicConnectionShutdown(
     Oper->API_CALL.Context->CONN_SHUTDOWN.RegistrationShutdown = FALSE;
     Oper->API_CALL.Context->CONN_SHUTDOWN.TransportShutdown = FALSE;
 
-    BOOLEAN IsWorkerThread = Connection->WorkerThreadID == CxPlatCurThreadID();
-    if (!IsWorkerThread) {
-        CxPlatEventInitialize(&CompletionEvent, TRUE, FALSE);
-        Oper->API_CALL.Context->Completed = &CompletionEvent;
-        Oper->API_CALL.Context->Status = NULL;
-    }
-
     //
-    // Queue the operation and wait for it to be processed.
+    // Queue the operation but don't wait for the completion.
     //
     QuicConnQueueHighestPriorityOper(Connection, Oper);
-    if (!IsWorkerThread) {
-        QuicTraceEvent(
-            ApiWaitOperation,
-            "[ api] Waiting on operation");
-        CxPlatEventWaitForever(CompletionEvent);
-        CxPlatEventUninitialize(CompletionEvent);
-    }
 
 Error:
 
@@ -966,7 +951,6 @@ MsQuicStreamShutdown(
         goto Error;
     }
 
-    CXPLAT_EVENT CompletionEvent;
     Oper = QuicOperationAlloc(Connection->Worker, QUIC_OPER_TYPE_API_CALL);
     if (Oper == NULL) {
         Status = QUIC_STATUS_OUT_OF_MEMORY;
@@ -982,14 +966,6 @@ MsQuicStreamShutdown(
     Oper->API_CALL.Context->STRM_SHUTDOWN.Flags = Flags;
     Oper->API_CALL.Context->STRM_SHUTDOWN.ErrorCode = ErrorCode;
 
-    BOOLEAN IsWorkerThread = Connection->WorkerThreadID == CxPlatCurThreadID();
-    if (!IsWorkerThread) {
-    CxPlatEventInitialize(&CompletionEvent, TRUE, FALSE);
-        Oper->API_CALL.Context->Completed = &CompletionEvent;
-        QUIC_STATUS AsyncStatus = 0;
-        Oper->API_CALL.Context->Status = &AsyncStatus;
-    }
-
     //
     // Async stream operations need to hold a ref on the stream so that the
     // stream isn't freed before the operation can be processed. The ref is
@@ -998,19 +974,10 @@ MsQuicStreamShutdown(
     QuicStreamAddRef(Stream, QUIC_STREAM_REF_OPERATION);
 
     //
-    // Queue the operation and wait for it to be processed.
+    // Queue the operation but don't wait for the completion.
     //
     QuicConnQueueOper(Connection, Oper);
-    if (!IsWorkerThread) {
-        QuicTraceEvent(
-            ApiWaitOperation,
-            "[ api] Waiting on operation");
-        CxPlatEventWaitForever(CompletionEvent);
-        CxPlatEventUninitialize(CompletionEvent);
-        Status = *(Oper->API_CALL.Context->Status);
-    } else {
-        Status = QUIC_STATUS_PENDING;
-    }
+    Status = QUIC_STATUS_PENDING;
 
 Error:
 

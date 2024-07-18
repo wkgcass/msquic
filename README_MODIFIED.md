@@ -6,14 +6,12 @@
 * Added `void* Context` as the last field in `QUIC_REGISTRATION_CONFIG`
 * Support to `dispatch` worker threads
 * Break the worker thread function into multiple small pieces
-* Make `ConnectionShutdown` and `StreamShutdown` block when not called on worker thread
 
 ## What can I do with the changed version?
 
 1. Thread Dispatching: Run msquic worker on your thread
 2. Custom Event Loop: Integrate msquic into your custom event loop
 3. Limit the threads used by msquic
-4. Safter connection and stream resources releasing
 
 ## How to use?
 
@@ -110,19 +108,3 @@ You may check the source code for definitions of the above functions.
 ### 3. Thread Limit
 
 Call `MsQuicSetThreadCountLimit(...)` before using any msquic api.
-
-### 4. Release connection and stream resources
-
-The `ConnectionShutdown`, `StreamShutdown` are all blocking calls when invoked outside the worker thread.
-
-We can easily achieve safe resource releasing by following the steps in [this commit](https://github.com/wkgcass/msquic-java/commit/6554f332b2196ad5d0b2f781934dbe18c9395e1d).
-
-Take `stream` as an example:
-
-1. user calls `stream.close()`
-2. the lib verifies the states and retrieves the lock and finally invokes `StreamShutdown`
-3. at the same time, the network error occurred, and the stream shuts-down with a callback
-4. in the callback, the eventloop trys to get the lock but failed, so it only sets the `canCallClose` field and return
-5. on the next tick of the worker event loop, the `StreamShutdown` is properly handled
-6. `StreamShutdown` call finishes on the user thread
-7. the user thread then checks `canCallClose` field, then call `StreamClose` as well as other resources releasing
