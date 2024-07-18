@@ -13,6 +13,7 @@ Abstract:
 #ifdef QUIC_CLOG
 #include "library.c.clog.h"
 #endif
+#include "msquic_modified.h"
 
 QUIC_LIBRARY MsQuicLib = { 0 };
 
@@ -1705,6 +1706,51 @@ Exit:
     }
 
     return Status;
+}
+
+uint8_t _extra_api_table_initialized;
+QUIC_EXTRA_API_TABLE _extra_api_table;
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+_Check_return_
+QUIC_STATUS
+QUIC_API
+MsQuicOpenExtra(
+    _In_ uint32_t Version,
+    _Out_ _Pre_defensive_ const void** QuicExtraApi
+    )
+{
+    if (Version != QUIC_API_VERSION_2) {
+        QuicTraceEvent(
+            LibraryError,
+            "[ lib] ERROR, %s.",
+            "Only v2 is supported in MsQuicOpenExtra");
+        return QUIC_STATUS_NOT_SUPPORTED;
+    }
+
+    QUIC_EXTRA_API_TABLE* api = &_extra_api_table;
+    if (_extra_api_table_initialized) {
+        *QuicExtraApi = api;
+        return QUIC_STATUS_SUCCESS;
+    }
+
+    api->ThreadGetCur = CxPlatGetCurThread;
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+    api->WorkerThreadInit             = MsQuicCxPlatWorkerThreadInit;
+    api->WorkerThreadBeforePoll       = MsQuicCxPlatWorkerThreadBeforePoll;
+    api->WorkerThreadAfterPoll        = MsQuicCxPlatWorkerThreadAfterPoll;
+    api->WorkerThreadFinalize         = MsQuicCxPlatWorkerThreadFinalize;
+    api->EventLoopThreadDispatcherSet = MsQuicSetEventLoopThreadDispatcher;
+    api->EventLoopThreadDispatcherGet = MsQuicGetEventLoopThreadDispatcher;
+    api->ThreadCountLimitSet          = MsQuicSetThreadCountLimit;
+    api->ThreadCountLimitGet          = MsQuicGetThreadCountLimit;
+    api->ThreadIsWorker               = MsQuicIsWorker;
+    api->ThreadSetIsWorker            = MsQuicSetIsWorker;
+#endif
+
+    _extra_api_table_initialized = 1;
+    *QuicExtraApi = api;
+    return QUIC_STATUS_SUCCESS;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)

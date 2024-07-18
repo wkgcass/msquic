@@ -37,6 +37,7 @@ Environment:
 uint32_t CxPlatNumaNodeCount;
 cpu_set_t* CxPlatNumaNodeMasks;
 #endif // CXPLAT_NUMA_AWARE
+#include "msquic_modified.h"
 
 #define CXPLAT_MAX_LOG_MSG_LEN        1024 // Bytes
 

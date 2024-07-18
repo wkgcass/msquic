@@ -13,6 +13,7 @@ Abstract:
 #ifdef QUIC_CLOG
 #include "api.c.clog.h"
 #endif
+#include "msquic_modified.h"
 
 #define IS_REGISTRATION_HANDLE(Handle) \
 ( \

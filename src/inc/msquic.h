@@ -44,96 +44,6 @@ Supported Platforms:
 extern "C" {
 #endif
 
-#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
-
-struct CxPlatProcessEventLocals {
-    void*      Worker;
-    void*      State;
-    uint32_t   WaitTime;
-
-    uint32_t   CqeCount;
-#define CxPlatProcessCqesArraySize (16)
-    CXPLAT_CQE Cqes[CxPlatProcessCqesArraySize];
-};
-
-struct CxPlatWorkerThreadLocals {
-    void* Worker;
-    void* State;
-};
-
-void
-QUIC_API
-MsQuicCxPlatWorkerThreadInit(
-    _Inout_ void* CxPlatWorkerThreadLocals
-    );
-
-void
-QUIC_API
-MsQuicCxPlatWorkerThreadBeforePoll(
-    _Inout_ void* CxPlatProcessEventLocals
-    );
-
-BOOLEAN
-QUIC_API
-MsQuicCxPlatWorkerThreadAfterPoll(
-    _Inout_ void* CxPlatProcessEventLocals
-    );
-
-int
-QUIC_API
-MsQuicCxPlatWorkerThreadFinalize(
-    _Inout_ void* CxPlatWorkerThreadLocals
-    );
-
-QUIC_STATUS
-QUIC_API
-CxPlatGetCurThread(
-    _Out_ CXPLAT_THREAD* Thread
-    );
-
-typedef
-QUIC_STATUS
-(QUIC_API * QUIC_EVENT_LOOP_THREAD_DISPATCH_FN)(
-    _In_ CXPLAT_THREAD_CONFIG* Config,
-    _In_ CXPLAT_EVENTQ* EventQ,
-    _Out_ CXPLAT_THREAD* Thread,
-    _In_ void* Context
-    );
-
-QUIC_STATUS
-QUIC_API
-MsQuicSetEventLoopThreadDispatcher(
-    _In_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN ThreadDispatcher
-    );
-
-QUIC_STATUS
-QUIC_API
-MsQuicGetEventLoopThreadDispatcher(
-    _Out_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN* ThreadDispatcher
-    );
-
-void
-QUIC_API
-MsQuicSetThreadCountLimit(
-    _In_ uint32_t Limit
-    );
-
-uint32_t
-QUIC_API
-MsQuicGetThreadCountLimit(void);
-
-uint8_t
-QUIC_API
-MsQuicIsWorker(void);
-
-void
-QUIC_API
-MsQuicSetIsWorker(
-    _In_ uint8_t is_worker
-    );
-
-#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
-
 typedef struct QUIC_HANDLE *HQUIC;
 
 //
@@ -1658,6 +1568,127 @@ typedef struct QUIC_API_TABLE {
 
 } QUIC_API_TABLE;
 
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
+struct CxPlatProcessEventLocals {
+    void*      Worker;
+    void*      State;
+    uint32_t   WaitTime;
+
+    uint32_t   CqeCount;
+#define CxPlatProcessCqesArraySize (16)
+    CXPLAT_CQE Cqes[CxPlatProcessCqesArraySize];
+};
+
+struct CxPlatWorkerThreadLocals {
+    void* Worker;
+    void* State;
+};
+
+typedef
+QUIC_STATUS
+(QUIC_API * QUIC_EVENT_LOOP_THREAD_DISPATCH_FN)(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_ void* Context
+    );
+
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+QUIC_STATUS
+(QUIC_API * QUIC_THREAD_GET_CUR_FN)(
+    _Out_ CXPLAT_THREAD* Thread
+    );
+
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void
+(QUIC_API * QUIC_WORKER_THREAD_INIT_FN)(
+    _Inout_ void* locals_
+    );
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void
+(QUIC_API * QUIC_WORKER_THREAD_BEFORE_POLL_FN)(
+    _Inout_ void* locals_
+    );
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+(QUIC_API * QUIC_WORKER_THREAD_AFTER_POLL_FN)(
+    _Inout_ void* locals_
+    );
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+int
+(QUIC_API * QUIC_WORKER_THREAD_FINALIZE_FN)(
+    _Inout_ void* locals_
+    );
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+QUIC_STATUS
+(QUIC_API * QUIC_EVENT_LOOP_THREAD_DISPATCHER_SET_FN)(
+    _In_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN EventLoopThreadDispatcher
+    );
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+QUIC_STATUS
+(QUIC_API * QUIC_EVENT_LOOP_THREAD_DISPATCHER_GET_FN)(
+    _Out_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN* EventLoopThreadDispatcher
+    );
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void
+(QUIC_API * QUIC_THREAD_COUNT_LIMIT_SET_FN)(
+    _In_ uint32_t Limit
+    );
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+uint32_t
+(QUIC_API * QUIC_THREAD_COUNT_LIMIT_GET_FN)(void);
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+uint8_t
+(QUIC_API * QUIC_THREAD_IS_WORKER_FN)(void);
+
+typedef
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void
+(QUIC_API * QUIC_THREAD_SET_IS_WORKER_FN)(
+    _In_ uint8_t is_worker
+    );
+
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
+
+typedef struct QUIC_EXTRA_API_TABLE {
+    QUIC_THREAD_GET_CUR_FN                   ThreadGetCur;
+#if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+    QUIC_WORKER_THREAD_INIT_FN               WorkerThreadInit;
+    QUIC_WORKER_THREAD_BEFORE_POLL_FN        WorkerThreadBeforePoll;
+    QUIC_WORKER_THREAD_AFTER_POLL_FN         WorkerThreadAfterPoll;
+    QUIC_WORKER_THREAD_FINALIZE_FN           WorkerThreadFinalize;
+    QUIC_EVENT_LOOP_THREAD_DISPATCHER_SET_FN EventLoopThreadDispatcherSet;
+    QUIC_EVENT_LOOP_THREAD_DISPATCHER_GET_FN EventLoopThreadDispatcherGet;
+    QUIC_THREAD_COUNT_LIMIT_SET_FN           ThreadCountLimitSet;
+    QUIC_THREAD_COUNT_LIMIT_GET_FN           ThreadCountLimitGet;
+    QUIC_THREAD_IS_WORKER_FN                 ThreadIsWorker;
+    QUIC_THREAD_SET_IS_WORKER_FN             ThreadSetIsWorker;
+#endif // QUIC_ENABLE_CUSTOM_EVENT_LOOP
+} QUIC_EXTRA_API_TABLE;
+
 #define QUIC_API_VERSION_1      1 // Not supported any more
 #define QUIC_API_VERSION_2      2 // Current latest
 
@@ -1669,6 +1700,7 @@ typedef struct QUIC_API_TABLE {
 //
 #define MsQuicClose(QuicApi) UNREFERENCED_PARAMETER((QuicApi))
 #define MsQuicOpenVersion(Version, QuicApi) QUIC_STATUS_NOT_SUPPORTED
+#define MsQuicOpenExtra(Version, QuicExtraApi) QUIC_STATUS_NOT_SUPPORTED
 
 #else
 
@@ -1687,6 +1719,18 @@ QUIC_API
 MsQuicOpenVersion(
     _In_ uint32_t Version,
     _Out_ _Pre_defensive_ const void** QuicApi
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+_Check_return_
+#if (__cplusplus >= 201703L || _MSVC_LANG >= 201703L)
+[[nodiscard]]
+#endif
+QUIC_STATUS
+QUIC_API
+MsQuicOpenExtra(
+    _In_ uint32_t Version,
+    _Out_ _Pre_defensive_ const void** QuicExtraApi
     );
 
 //
