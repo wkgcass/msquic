@@ -460,7 +460,7 @@ struct CxPlatProcessEventsLocals_ {
     uint32_t                WaitTime;
 
     uint32_t                CqeCount;
-#define CxPlatProcessCqesArraySize (16)
+#define CxPlatProcessCqesArraySize (128)
     CXPLAT_CQE              Cqes[CxPlatProcessCqesArraySize];
 };
 
