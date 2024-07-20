@@ -38,7 +38,29 @@ Supported Platforms:
 #error "Unsupported Platform"
 #endif
 
+#ifdef __MINGW32__
+// windows contains so many symbols, makes it hard to compile
+// we extract necessary symbols only
+#define _Pre_defensive_
+#define E_NOT_VALID_STATE 0x8007139f
+#define WSA_SECURE_HOST_NOT_FOUND 0x80072b18
+#define QUIC_STATUS_ADDRESS_NOT_AVAILABLE 99
+
+typedef HANDLE CXPLAT_EVENTQ;
+typedef OVERLAPPED_ENTRY CXPLAT_CQE;
+typedef HANDLE CXPLAT_THREAD;
+typedef struct CXPLAT_THREAD_CONFIG CXPLAT_THREAD_CONFIG;
+typedef uint32_t CXPLAT_THREAD_ID;
+typedef struct CXPLAT_EXECUTION_STATE {
+    uint64_t TimeNow;           // in microseconds
+    uint64_t LastWorkTime;      // in microseconds
+    uint32_t WaitTime;
+    uint32_t NoWorkCount;
+    CXPLAT_THREAD_ID ThreadID;
+} CXPLAT_EXECUTION_STATE;
+#else
 #include "quic_platform.h"
+#endif
 
 #if defined(__cplusplus)
 extern "C" {

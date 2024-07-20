@@ -225,6 +225,11 @@ GetModuleHandleW(
 // Wrapper functions
 //
 
+#ifdef __MINGW32__
+#define _Interlocked_operand_
+#define _Frees_ptr_
+#endif
+
 inline
 void*
 InterlockedFetchAndClearPointer(
@@ -1108,6 +1113,15 @@ CXPLAT_THREAD_CALLBACK(CxPlatThreadCustomStart, CustomContext); // CXPLAT_THREAD
 #endif // CXPLAT_USE_CUSTOM_THREAD_CONTEXT
 
 #if QUIC_ENABLE_CUSTOM_EVENT_LOOP
+typedef
+QUIC_STATUS
+(QUIC_API * QUIC_EVENT_LOOP_THREAD_DISPATCH_FN)(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_ void* Context
+    );
+
 QUIC_STATUS
 QUIC_API
 MsQuicGetEventLoopThreadDispatcher(

@@ -14,6 +14,7 @@ Abstract:
 #ifdef QUIC_CLOG
 #include "datapath_winuser.c.clog.h"
 #endif
+#include "msquic_modified.h"
 
 #pragma warning(disable:4116) // unnamed type definition in parentheses
 

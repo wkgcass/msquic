@@ -14,6 +14,7 @@ Abstract:
 #ifdef QUIC_CLOG
 #include "platform_worker.c.clog.h"
 #endif
+#include "msquic_modified.h"
 
 const uint32_t WorkerWakeEventPayload = CXPLAT_CQE_TYPE_WORKER_WAKE;
 const uint32_t WorkerUpdatePollEventPayload = CXPLAT_CQE_TYPE_WORKER_UPDATE_POLL;
@@ -463,8 +464,8 @@ struct CxPlatProcessEventsLocals_ {
     CXPLAT_CQE              Cqes[CxPlatProcessCqesArraySize];
 };
 
-static void CxPlatProcessEventsPrePoll(struct CxPlatProcessEventsLocals_*);
-static BOOLEAN CxPlatProcessEventsPostPoll(struct CxPlatProcessEventsLocals_*);
+static void CxPlatProcessEventsPrePoll(_Inout_ struct CxPlatProcessEventsLocals_*);
+static BOOLEAN CxPlatProcessEventsPostPoll(_Inout_ struct CxPlatProcessEventsLocals_*);
 
 BOOLEAN
 CxPlatProcessEvents(
@@ -539,10 +540,10 @@ struct CxPlatWorkerThreadLocals_ {
   CXPLAT_EXECUTION_STATE* State;
 };
 
-static void CxPlatWorkerThreadPreLoop(struct CxPlatWorkerThreadLocals_*);
-static void CxPlatWorkerThreadPrePoll(struct CxPlatWorkerThreadLocals_*);
-static void CxPlatWorkerThreadPostPoll(struct CxPlatWorkerThreadLocals_*);
-static int CxPlatWorkerThreadPostLoop(struct CxPlatWorkerThreadLocals_*);
+static void CxPlatWorkerThreadPreLoop(_Inout_ struct CxPlatWorkerThreadLocals_*);
+static void CxPlatWorkerThreadPrePoll(_Inout_ struct CxPlatWorkerThreadLocals_*);
+static void CxPlatWorkerThreadPostPoll(_Inout_ struct CxPlatWorkerThreadLocals_*);
+static int CxPlatWorkerThreadPostLoop(_Inout_ struct CxPlatWorkerThreadLocals_*);
 
 #if QUIC_ENABLE_CUSTOM_EVENT_LOOP
 

@@ -18,6 +18,7 @@ Environment:
 #ifdef QUIC_CLOG
 #include "platform_winuser.c.clog.h"
 #endif
+#include "msquic_modified.h"
 
 uint64_t CxPlatPerfFreq;
 uint64_t CxPlatTotalMemory;
