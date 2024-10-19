@@ -13,6 +13,7 @@ Abstract:
 #ifdef QUIC_CLOG
 #include "library.c.clog.h"
 #endif
+#include "msquic_modified.h"
 
 QUIC_LIBRARY MsQuicLib = { 0 };
 
@@ -649,7 +650,8 @@ MsQuicRelease(
 _IRQL_requires_max_(PASSIVE_LEVEL)
 QUIC_STATUS
 QuicLibraryLazyInitialize(
-    BOOLEAN AcquireLock
+    BOOLEAN AcquireLock,
+    void* Context
     )
 {
     const CXPLAT_UDP_DATAPATH_CALLBACKS DatapathCallbacks = {
@@ -675,12 +677,17 @@ QuicLibraryLazyInitialize(
         goto Exit;
     }
 
+    QUIC_EXECUTION_CONFIG_EX ConfigEx = {
+        .Config = MsQuicLib.ExecutionConfig,
+        .Context = Context,
+    };
+
     Status =
         CxPlatDataPathInitialize(
             sizeof(QUIC_RX_PACKET),
             &DatapathCallbacks,
             NULL,                   // TcpCallbacks
-            MsQuicLib.ExecutionConfig,
+            &ConfigEx,
             &MsQuicLib.Datapath);
     if (QUIC_SUCCEEDED(Status)) {
         QuicTraceEvent(
@@ -1812,6 +1819,47 @@ MsQuicClose(
         MsQuicRelease();
         MsQuicLibraryUnload();
     }
+}
+
+static uint8_t extra_api_table_initialized;
+static QUIC_EXTRA_API_TABLE extra_api_table;
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+_Check_return_
+QUIC_STATUS
+QUIC_API
+MsQuicOpenExtra(
+    _In_ uint32_t Version,
+    _Out_ _Pre_defensive_ const void** QuicExtraApi
+    )
+{
+    if (Version != QUIC_API_VERSION_2) {
+        QuicTraceEvent(
+            LibraryError,
+            "[ lib] ERROR, %s.",
+            "Only v2 is supported in MsQuicOpenExtra");
+        return QUIC_STATUS_NOT_SUPPORTED;
+    }
+
+    QUIC_EXTRA_API_TABLE* api = &extra_api_table;
+    if (extra_api_table_initialized) {
+        *QuicExtraApi = api;
+        return QUIC_STATUS_SUCCESS;
+    }
+
+    api->ThreadGetCur                 = CxPlatGetCurThread;
+    api->WorkerThreadInit             = MsQuicCxPlatWorkerThreadInit;
+    api->WorkerThreadBeforePoll       = MsQuicCxPlatWorkerThreadBeforePoll;
+    api->WorkerThreadAfterPoll        = MsQuicCxPlatWorkerThreadAfterPoll;
+    api->WorkerThreadFinalize         = MsQuicCxPlatWorkerThreadFinalize;
+    api->EventLoopThreadDispatcherSet = MsQuicSetEventLoopThreadDispatcher;
+    api->EventLoopThreadDispatcherGet = MsQuicGetEventLoopThreadDispatcher;
+    api->ThreadIsWorker               = MsQuicIsWorker;
+    api->ThreadSetIsWorker            = MsQuicSetIsWorker;
+
+    extra_api_table_initialized = 1;
+    *QuicExtraApi = api;
+    return QUIC_STATUS_SUCCESS;
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)

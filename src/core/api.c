@@ -13,6 +13,7 @@ Abstract:
 #ifdef QUIC_CLOG
 #include "api.c.clog.h"
 #endif
+#include "msquic_modified.h"
 
 #define IS_REGISTRATION_HANDLE(Handle) \
 ( \
@@ -1420,7 +1421,7 @@ MsQuicSetParam(
 
     QUIC_CONN_VERIFY(Connection, !Connection->State.Freed);
 
-    if (Connection->WorkerThreadID == CxPlatCurThreadID()) {
+    if ((Connection->WorkerThreadID == 0 && MsQuicIsWorker()) || Connection->WorkerThreadID == CxPlatCurThreadID()) {
         //
         // Execute this blocking API call inline if called on the worker thread.
         //

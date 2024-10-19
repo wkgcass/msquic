@@ -226,6 +226,11 @@ GetModuleHandleW(
 // Wrapper functions
 //
 
+#ifdef __MINGW32__
+#define _Interlocked_operand_
+#define _Frees_ptr_
+#endif
+
 inline
 void*
 InterlockedFetchAndClearPointer(
@@ -1094,6 +1099,38 @@ CXPLAT_THREAD_CALLBACK(CxPlatThreadCustomStart, CustomContext); // CXPLAT_THREAD
 
 #endif // CXPLAT_USE_CUSTOM_THREAD_CONTEXT
 
+typedef
+QUIC_STATUS
+(QUIC_API * QUIC_EVENT_LOOP_THREAD_DISPATCH_FN)(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_opt_ void* Context
+    );
+
+QUIC_STATUS
+QUIC_API
+MsQuicGetEventLoopThreadDispatcher(
+    _Out_ QUIC_EVENT_LOOP_THREAD_DISPATCH_FN* ThreadDispatcher
+    );
+
+inline
+QUIC_STATUS
+CxPlatEventLoopThreadDispatch(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_opt_ void* Context
+    )
+{
+    QUIC_EVENT_LOOP_THREAD_DISPATCH_FN fn = NULL;
+    MsQuicGetEventLoopThreadDispatcher(&fn);
+    if (fn == NULL) {
+        return QUIC_STATUS_INVALID_STATE;
+    }
+    return fn(Config, EventQ, Thread, Context);
+}
+
 inline
 QUIC_STATUS
 CxPlatThreadCreate(
@@ -1182,6 +1219,16 @@ CxPlatThreadCreate(
 #define CxPlatThreadWait(Thread) WaitForSingleObject(*(Thread), INFINITE)
 typedef uint32_t CXPLAT_THREAD_ID;
 #define CxPlatCurThreadID() GetCurrentThreadId()
+
+inline
+QUIC_STATUS
+CxPlatGetCurThread(
+    _Out_ CXPLAT_THREAD* Thread
+    )
+{
+    *Thread = GetCurrentThread();
+    return QUIC_STATUS_SUCCESS;
+}
 
 //
 // Rundown Protection Interfaces

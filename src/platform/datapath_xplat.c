@@ -21,10 +21,12 @@ CxPlatDataPathInitialize(
     _In_ uint32_t ClientRecvContextLength,
     _In_opt_ const CXPLAT_UDP_DATAPATH_CALLBACKS* UdpCallbacks,
     _In_opt_ const CXPLAT_TCP_DATAPATH_CALLBACKS* TcpCallbacks,
-    _In_opt_ QUIC_EXECUTION_CONFIG* Config,
+    _In_opt_ QUIC_EXECUTION_CONFIG_EX* ConfigEx,
     _Out_ CXPLAT_DATAPATH** NewDataPath
     )
 {
+    QUIC_EXECUTION_CONFIG* Config = ConfigEx ? ConfigEx->Config : NULL;
+
     QUIC_STATUS Status = QUIC_STATUS_SUCCESS;
     if (NewDataPath == NULL) {
         Status = QUIC_STATUS_INVALID_PARAMETER;
@@ -36,7 +38,7 @@ CxPlatDataPathInitialize(
             ClientRecvContextLength,
             UdpCallbacks,
             TcpCallbacks,
-            Config,
+            ConfigEx,
             NewDataPath);
     if (QUIC_FAILED(Status)) {
         QuicTraceLogVerbose(

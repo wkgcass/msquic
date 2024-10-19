@@ -657,7 +657,7 @@ CxPlatWorkersUninit(
 
 BOOLEAN
 CxPlatWorkersLazyStart(
-    _In_opt_ QUIC_EXECUTION_CONFIG* Config
+    _In_opt_ QUIC_EXECUTION_CONFIG_EX* ConfigEx
     );
 
 CXPLAT_EVENTQ*
@@ -694,6 +694,7 @@ CxPlatDpRawGetDatapathSize(
 #define CXPLAT_CQE_TYPE_XDP_SHUTDOWN        CXPLAT_CQE_TYPE_QUIC_BASE + 6
 #define CXPLAT_CQE_TYPE_XDP_IO              CXPLAT_CQE_TYPE_QUIC_BASE + 7
 #define CXPLAT_CQE_TYPE_XDP_FLUSH_TX        CXPLAT_CQE_TYPE_QUIC_BASE + 8
+#define CXPLAT_CQE_TYPE_USER_EVENT          (0xFF0A)
 
 extern CXPLAT_RUNDOWN_REF CxPlatWorkerRundown;
 
@@ -1005,7 +1006,7 @@ DataPathInitialize(
     _In_ uint32_t ClientRecvDataLength,
     _In_opt_ const CXPLAT_UDP_DATAPATH_CALLBACKS* UdpCallbacks,
     _In_opt_ const CXPLAT_TCP_DATAPATH_CALLBACKS* TcpCallbacks,
-    _In_opt_ QUIC_EXECUTION_CONFIG* Config,
+    _In_opt_ QUIC_EXECUTION_CONFIG_EX* ConfigEx,
     _Out_ CXPLAT_DATAPATH** NewDatapath
     );
 

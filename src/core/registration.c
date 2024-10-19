@@ -56,7 +56,7 @@ MsQuicRegistrationOpen(
     // For external registrations, we need to take the library lock. For the internal
     // registration, the caller of this function holds the lock.
     //
-    Status = QuicLibraryLazyInitialize(ExternalRegistration);
+    Status = QuicLibraryLazyInitialize(ExternalRegistration, Config ? Config->Context : NULL);
     if (QUIC_FAILED(Status)) {
         goto Error;
     }

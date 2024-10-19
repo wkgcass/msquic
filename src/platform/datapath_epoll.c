@@ -365,10 +365,12 @@ DataPathInitialize(
     _In_ uint32_t ClientRecvDataLength,
     _In_opt_ const CXPLAT_UDP_DATAPATH_CALLBACKS* UdpCallbacks,
     _In_opt_ const CXPLAT_TCP_DATAPATH_CALLBACKS* TcpCallbacks,
-    _In_opt_ QUIC_EXECUTION_CONFIG* Config,
+    _In_opt_ QUIC_EXECUTION_CONFIG_EX* ConfigEx,
     _Out_ CXPLAT_DATAPATH** NewDatapath
     )
 {
+    QUIC_EXECUTION_CONFIG* Config = ConfigEx ? ConfigEx->Config : NULL;
+
     UNREFERENCED_PARAMETER(TcpCallbacks);
     if (NewDatapath == NULL) {
         return QUIC_STATUS_INVALID_PARAMETER;
@@ -387,7 +389,7 @@ DataPathInitialize(
         }
     }
 
-    if (!CxPlatWorkersLazyStart(Config)) {
+    if (!CxPlatWorkersLazyStart(ConfigEx)) {
         return QUIC_STATUS_OUT_OF_MEMORY;
     }
 

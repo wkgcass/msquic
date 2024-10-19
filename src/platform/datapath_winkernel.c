@@ -793,10 +793,12 @@ CxPlatDataPathInitialize(
     _In_ uint32_t ClientRecvDataLength,
     _In_opt_ const CXPLAT_UDP_DATAPATH_CALLBACKS* UdpCallbacks,
     _In_opt_ const CXPLAT_TCP_DATAPATH_CALLBACKS* TcpCallbacks,
-    _In_opt_ QUIC_EXECUTION_CONFIG* Config,
+    _In_opt_ QUIC_EXECUTION_CONFIG_EX* ConfigEx,
     _Out_ CXPLAT_DATAPATH* *NewDataPath
     )
 {
+    QUIC_EXECUTION_CONFIG* Config = ConfigEx ? ConfigEx->Config : NULL;
+
     QUIC_STATUS Status;
     WSK_CLIENT_NPI WskClientNpi = { NULL, &WskAppDispatch };
     uint32_t DatapathLength;

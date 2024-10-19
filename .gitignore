@@ -377,6 +377,7 @@ Cargo.lock
 
 # IntelliJ project files
 .idea/
+/cmake-build-debug/
 
 # docfx cache folder
 _site

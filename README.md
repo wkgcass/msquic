@@ -1,5 +1,7 @@
 <h1 align="center"><img src="docs/images/readme_logo.png" width="500" alt="MsQuic logo"/></h1>
 
+For docs about modified part, see [README\_MODIFIED.md](README_MODIFIED.md)
+
 [![Documentation](https://img.shields.io/static/v1?label=Documentation&message=Dashboard&color=blue)](https://microsoft.github.io/msquic/msquicdocs/docs/API.html)
 [![Perf Dashboard](https://img.shields.io/static/v1?label=Performance&message=Dashboard&color=blue)](https://microsoft.github.io/msquic/)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/microsoft/msquic/build.yml?query=branch%3Amain&label=Build)](https://github.com/microsoft/msquic/actions/workflows/build.yml?query=branch%3Amain)

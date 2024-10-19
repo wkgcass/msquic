@@ -360,6 +360,9 @@ function CMake-Generate {
         if ($Generator.Contains("Visual Studio") -or [string]::IsNullOrWhiteSpace($Generator)) {
             if ($Generator.Contains("Visual Studio")) {
                 $Arguments += " -G $Generator"
+            } else {
+                $Arguments += " -G "
+                $Arguments += """Visual Studio 17 2022"""
             }
             $Arguments += " -A "
             switch ($Arch) {

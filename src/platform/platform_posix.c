@@ -37,6 +37,7 @@ Environment:
 uint32_t CxPlatNumaNodeCount;
 cpu_set_t* CxPlatNumaNodeMasks;
 #endif // CXPLAT_NUMA_AWARE
+#include "msquic_modified.h"
 
 #define CXPLAT_MAX_LOG_MSG_LEN        1024 // Bytes
 
@@ -608,6 +609,22 @@ CxPlatGetAllocFailDenominator(
 }
 #endif
 
+QUIC_STATUS
+CxPlatEventLoopThreadDispatch(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_opt_ void* Context
+    )
+{
+    QUIC_EVENT_LOOP_THREAD_DISPATCH_FN fn = NULL;
+    MsQuicGetEventLoopThreadDispatcher(&fn);
+    if (fn == NULL) {
+        return QUIC_STATUS_INVALID_STATE;
+    }
+    return fn(Config, EventQ, Thread, Context);
+}
+
 #if defined(CX_PLATFORM_LINUX)
 
 QUIC_STATUS
@@ -827,6 +844,16 @@ CxPlatCurThreadID(
     return (CXPLAT_THREAD_ID)Tid;
 
 #endif // CX_PLATFORM_DARWIN
+}
+
+QUIC_STATUS
+QUIC_API
+CxPlatGetCurThread(
+    _Out_ CXPLAT_THREAD* Thread
+    )
+{
+    *Thread = pthread_self();
+    return QUIC_STATUS_SUCCESS;
 }
 
 void

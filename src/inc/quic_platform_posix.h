@@ -1284,6 +1284,14 @@ CXPLAT_THREAD_CALLBACK(CxPlatThreadCustomStart, CustomContext); // CXPLAT_THREAD
 #endif // CXPLAT_USE_CUSTOM_THREAD_CONTEXT
 
 QUIC_STATUS
+CxPlatEventLoopThreadDispatch(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_opt_ void* Context
+    );
+
+QUIC_STATUS
 CxPlatThreadCreate(
     _In_ CXPLAT_THREAD_CONFIG* Config,
     _Out_ CXPLAT_THREAD* Thread
@@ -1304,6 +1312,12 @@ typedef uint32_t CXPLAT_THREAD_ID;
 CXPLAT_THREAD_ID
 CxPlatCurThreadID(
     void
+    );
+
+QUIC_STATUS
+QUIC_API
+CxPlatGetCurThread(
+    _Out_ CXPLAT_THREAD* Thread
     );
 
 //

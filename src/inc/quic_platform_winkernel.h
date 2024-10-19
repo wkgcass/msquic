@@ -743,6 +743,22 @@ typedef struct _ETHREAD *CXPLAT_THREAD;
 
 inline
 QUIC_STATUS
+CxPlatEventLoopThreadDispatch(
+    _In_ CXPLAT_THREAD_CONFIG* Config,
+    _In_ CXPLAT_EVENTQ* EventQ,
+    _Out_ CXPLAT_THREAD* Thread,
+    _In_opt_ void* Context
+    )
+{
+    UNREFERENCED_PARAMETER(Config);
+    UNREFERENCED_PARAMETER(EventQ);
+    UNREFERENCED_PARAMETER(Thread);
+    UNREFERENCED_PARAMETER(Context);
+    return QUIC_STATUS_NOT_SUPPORTED;
+}
+
+inline
+QUIC_STATUS
 CxPlatThreadCreate(
     _In_ CXPLAT_THREAD_CONFIG* Config,
     _Out_ CXPLAT_THREAD* Thread
@@ -881,6 +897,15 @@ Error:
         NULL)
 typedef ULONG_PTR CXPLAT_THREAD_ID;
 #define CxPlatCurThreadID() ((CXPLAT_THREAD_ID)PsGetCurrentThreadId())
+
+inline
+QUIC_STATUS
+CxPlatGetCurThread(
+    _Out_ CXPLAT_THREAD* Thread
+    )
+{
+    return QUIC_STATUS_NOT_SUPPORTED;
+}
 
 //
 // Processor Count and Index
